@@ -73,23 +73,23 @@ _verifyExists() {
 
 verifyExists() {
     filename="$1"
-    _verifyExists ${filename} && (echo "✅ FOUND: ${worktree}${filename}") || (echo "❌ MISSING: ${worktree}${filename}")
+    _verifyExists ${filename} && (echo "✅ FOUND: ${worktree}/${filename}") || (echo "❌ MISSING: ${worktree}/${filename}")
 }
 
 verifySoftlink() {
     filename="$1"
-    test -L "${worktree}/${filename}" && (echo "  ✓ softlinked: ${worktree}${filename}") || (echo "  ✘ not softlinked: ${worktree}${filename}")
+    test -L "${worktree}/${filename}" && (echo "  ✓ softlinked: ${worktree}/${filename}") || (echo "  ✘ not softlinked: ${worktree}/${filename}")
 }
 
 verifyHardlink() {
     filename="$1"
     # link_count=$(stat -c %h "${worktree}/${filename}" 2>/dev/null)
     link_count=$(stat -f %l "${worktree}/${filename}" 2>/dev/null)
-    [ "${link_count}" -gt 1 ] && (echo "  ✓ hardlinked: ${worktree}${filename}") || (echo "  ✘ not hardlinked: ${worktree}${filename}")
+    [ "${link_count}" -gt 1 ] && (echo "  ✓ hardlinked: ${worktree}/${filename}") || (echo "  ✘ not hardlinked: ${worktree}/${filename}")
 }
 
 check() {
-    echo "\nChecking for shared local resources in 📁 ${worktree}...\n"
+    echo "\n🔎 Checking for shared local resources in 📁 ${worktree}...\n"
     _check
 }
 
@@ -116,7 +116,7 @@ link() {
         _verifyExists ${asset} || createSoftlink ${asset}
     done
 
-    echo "\nShared local resources linked in 📁 ${worktree}\n"
+    echo "\n🔗 Shared local resources linked in 📁 ${worktree}\n"
     _check
 }
 
@@ -129,7 +129,7 @@ cleanup() {
         _verifyExists ${asset} && unlink ${worktree}/${asset}
     done
 
-    echo "\nShared local resources unlinked in 📁 ${worktree}\n"
+    echo "\n✂️ Shared local resources unlinked in 📁 ${worktree}\n"
     _check
 }
 

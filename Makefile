@@ -11,6 +11,9 @@ install: wrktr
 uninstall:
 	@[ -f $(USER_BIN)/wrktr ] && (sudo rm $(USER_BIN)/wrktr; echo "uninstalled from $(USER_BIN)") || echo "wrktr not installed"
 
+clean:
+	@[ -f wrktr ] && rm wrktr || echo "nothing to remove"
+
 .PHONY: install uninstall
 # vim:ft=make
 #
