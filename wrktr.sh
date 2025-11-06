@@ -15,24 +15,127 @@ dir_char="📁"
 
 _help() {
     cat <<EOF
-    wrktr init [repo-url] [project-directory]
+wrktr - Git Worktree Resource Manager
+======================================
 
-        1. Create project directory
-        2. Clone bare repository into .bare
-        3. Create .git in project directory
-        4. Configure fetch remote
-        5. Delete local branches
-        6. Add main worktree
-        7. Create initial wrktr.conf
+Share gitignored configuration files across multiple git worktrees using
+hardlinks, softlinks, and copies.
 
-    wrktr link [worktree directory]
-    wrktr check [worktree directory]
-    wrktr cleanup [worktree directory]
+PROBLEM: When using git worktrees, each worktree needs its own copy of
+gitignored files (like .env, .claude/, IDE settings). This tool centralizes
+them in .SHARED/ and links them into each worktree automatically.
 
-    wrktr.conf:
-        hardlink_assets=()
-        softlink_assets=()
-        copy_assets=()
+COMMANDS
+--------
+
+  wrktr init [repo-url] [project-directory]
+
+    Initialize a new worktree-enabled project:
+      • Creates project directory structure
+      • Clones bare repository to .bare/
+      • Sets up .SHARED/ for centralized resources
+      • Creates main worktree
+      • Generates initial wrktr.conf
+
+    Example:
+      wrktr init https://github.com/user/repo.git ~/projects/myapp
+
+  wrktr link [worktree-directory]
+
+    Link shared resources into a worktree.
+
+    From project root:  wrktr link feature-branch/
+    From worktree:      wrktr link
+
+    Creates hardlinks, softlinks, and copies based on wrktr.conf
+
+  wrktr check [worktree-directory]
+
+    Verify that shared resources are correctly linked.
+
+    From project root:  wrktr check feature-branch/
+    From worktree:      wrktr check
+
+    Shows status of each configured asset
+
+  wrktr cleanup [worktree-directory]
+
+    Remove links to shared resources (before deleting worktree).
+
+    From project root:  wrktr cleanup feature-branch/
+    From worktree:      wrktr cleanup
+
+    Unlinks hardlinks/softlinks, restores copied files with git
+
+CONFIGURATION (wrktr.conf)
+--------------------------
+
+Define three types of shared assets:
+
+  hardlink_assets=(
+    "CLAUDE.local.md"
+    ".claude/settings.local.json"
+  )
+    Individual gitignored files. Multiple worktrees point to same inode.
+    Changes in any worktree propagate to all. Space-efficient.
+
+  softlink_assets=(
+    ".claude/commands"
+    ".claude/agents"
+  )
+    Gitignored directories. Symbolic link to shared location.
+    Entire directory structure is shared.
+
+  copy_assets=(
+    ".vscode/settings.json"
+  )
+    Files checked into git that need local modifications.
+    Copied from .SHARED/, can be restored with git.
+
+TYPICAL WORKFLOW
+----------------
+
+  1. wrktr init https://github.com/user/repo.git ~/projects/myapp
+  2. cd ~/projects/myapp
+  3. Edit wrktr.conf to define shared assets
+  4. Populate .SHARED/ with your config files
+  5. git worktree add feature-xyz
+  6. wrktr link feature-xyz/
+  7. Work in feature-xyz/ with shared configs
+
+DIRECTORY STRUCTURE
+-------------------
+
+  project/
+  ├── .bare/              # Bare git repository
+  ├── .git                # Points to .bare
+  ├── .SHARED/            # Centralized shared resources
+  │   ├── .claude/        # Shared Claude Code settings
+  │   ├── CLAUDE.local.md
+  │   └── .env
+  ├── wrktr.conf          # Defines what to share
+  ├── main/               # First worktree
+  └── feature-xyz/        # Additional worktrees
+
+MORE INFO
+---------
+
+  GitHub: https://github.com/nicolemon/worktree-manager
+
+EOF
+}
+
+_commands() {
+    cat <<EOF
+wrktr commands reference
+========================
+
+  init [repo-url] [project-directory]         Initialize a new worktree-enabled project
+  link [worktree-directory]                   Link shared resources into a worktree; when run from within a worktree, worktree-directory is ignored
+  check [worktree-directory]                  Verify that shared resources are correctly linked; when run from within a worktree, worktree-directory is ignored
+  cleanup [worktree-directory]                Remove links to shared resources; when run from within a worktree, worktree-directory is ignored
+  commands                                    Show this text
+
 EOF
 }
 
@@ -213,6 +316,10 @@ _exit() {
 entrypoint() {
     if [ $1 = "help" ]; then
         _help && _exit 0
+    fi
+
+    if [ $1 = "commands" ]; then
+        _commands && _exit 0
     fi
 
     if [ -z $1 ]; then
