@@ -1,3 +1,6 @@
+>[!NOTE]
+> hacky script i made to help me manage git worktrees, sprinkled with documentation thanks to claude
+
 # wrktr - Git Worktree Manager
 
 A zsh utility for managing git worktrees with shared local resources.
