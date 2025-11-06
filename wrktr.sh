@@ -3,21 +3,77 @@
 
 # https://www.tomups.com/posts/git-worktrees/
 
+big_good_icon="✓"
+big_bad_icon="✘"
+good_icon="✅"
+bad_icon="❌"
+warn_icon="❗"
+search_icon="🔎"
+remove_icon="✂️"
+link_icon="🔗"
+
+_help() {
+    cat <<EOF
+    wrktr init [repo-url] [project-directory]
+
+        1. Create project directory
+        2. Clone bare repository into .bare
+        3. Create .git in project directory
+        4. Configure fetch remote
+        5. Delete local branches
+        6. Add main worktree
+        7. Create initial wrktr.conf
+
+    wrktr link [worktree directory]
+    wrktr check [worktree directory]
+    wrktr cleanup [worktree directory]
+
+    wrktr.conf:
+        hardlink_assets=()
+        softlink_assets=()
+        copy_assets=()
+EOF
+}
+
 init() {
     repo_url=$1
     project_dir=$2
 
-    test -d ${project_dir} || mkdir ${project_dir}
-    git clone --bare ${repo_url} ${project_dir}/.bare
+    echo "** creating project shared directory if needed..."
+    test -d ${project_dir}/.SHARED || mkdir -p ${project_dir}/.SHARED
+
+    echo "** cloning bare repository to ${project_dir}/.bare..."
+    git clone --quiet --bare ${repo_url} ${project_dir}/.bare
+
+    echo "** setting gitdir for project directory..."
     echo "gitdir: ./.bare" > ${project_dir}/.git
-    pushd ${project_dir}
 
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch
-    git worktree add main
-    git branch --list | grep -v '\*\|\+\|ahead' | xargs -n 1 git branch -D
+    echo "** configuring fetch remote and fetching..."
+    git -C ${project_dir} config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    git -C ${project_dir} fetch --quiet
+    git -C ${project_dir} branch --list | grep -v '\*\|\+\|ahead' | xargs -n 1 git branch -D
 
-    popd && echo "returned to parent directory"
+    echo "** creating main worktree..."
+    git -C ${project_dir} worktree add --quiet main
+
+    echo "** creating initial wrktr.conf..."
+    _write_conf > ${project_dir}/wrktr.conf
+}
+
+_write_conf() {
+    cat <<EOF
+# Add shared files to .SHARED using the directory structure as wanted in the
+# worktrees
+
+# individual gitignored files
+hardlink_assets=()
+
+# gitignored directories
+softlink_assets=()
+
+# files that are checked into the git repository that we want local versions of
+copy_assets=()
+EOF
 }
 
 worktree_component() {
@@ -32,9 +88,9 @@ worktree_component() {
 
 guard() {
     if [ ! $(worktree_component) = "project" ]; then
-        echo "❗ you're not in a wrktr workspace" && _exit 1
+        echo "${warn_icon} you're not in a wrktr workspace" && _exit 1
     elif ! test -d ${worktree}; then
-        echo "❗ directory at ${worktree} does not exist" && _exit 1
+        echo "${warn_icon} directory at ${worktree} does not exist" && _exit 1
     fi
 }
 
@@ -60,30 +116,30 @@ _verifyExists() {
 
 verifyExists() {
     filename="$1"
-    _verifyExists ${filename} && (echo "✅ FOUND: ${worktree}/${filename}") || (echo "❌ MISSING: ${worktree}/${filename}")
+    _verifyExists ${filename} && (echo "${big_good_icon} FOUND: ${worktree}/${filename}") || (echo "${big_bad_icon} MISSING: ${worktree}/${filename}")
 }
 
 verifySoftlink() {
     filename="$1"
-    test -L "${worktree}/${filename}" && (echo "  ✓ softlinked: ${worktree}/${filename}") || (echo "  ✘ not softlinked: ${worktree}/${filename}")
+    test -L "${worktree}/${filename}" && (echo "  ${good_icon} softlinked: ${worktree}/${filename}") || (echo "  ${bad_icon} not softlinked: ${worktree}/${filename}")
 }
 
 verifyHardlink() {
     filename="$1"
     # link_count=$(stat -c %h "${worktree}/${filename}" 2>/dev/null)
     link_count=$(stat -f %l "${worktree}/${filename}" 2>/dev/null)
-    [ "${link_count}" -gt 1 ] && (echo "  ✓ hardlinked: ${worktree}/${filename}") || (echo "  ✘ not hardlinked: ${worktree}/${filename}")
+    [ "${link_count}" -gt 1 ] && (echo "  ${good_icon} hardlinked: ${worktree}/${filename}") || (echo "  ${bad_icon} not hardlinked: ${worktree}/${filename}")
 }
 
 verifyCopy() {
     filename="$1"
     share_sum=$(sha1sum ${shared}/${filename} | awk '{ print $1 }')
     work_sum=$(sha1sum ${worktree}/${filename} | awk '{ print $1 }')
-    [ "${share_sum}" = "${work_sum}" ] && (echo "  ✓ copy matches: ${worktree}/${filename}") || (echo "  ✘ copy mismatch: ${worktree}/${filename}")
+    [ "${share_sum}" = "${work_sum}" ] && (echo "  ${good_icon} copy matches: ${worktree}/${filename}") || (echo "  ${bad_icon} copy mismatch: ${worktree}/${filename}")
 }
 
 check() {
-    echo "\n🔎 Checking for shared local resources in 📁 ${worktree}...\n"
+    echo "\n${search_icon} Checking for shared local resources in 📁 ${worktree}...\n"
     _check
 }
 
@@ -118,7 +174,7 @@ link() {
         createCopy ${asset}
     done
 
-    echo "\n🔗 Shared local resources linked in 📁 ${worktree}\n"
+    echo "\n${link_icon} Shared local resources linked in 📁 ${worktree}\n"
     _check
 }
 
@@ -135,7 +191,7 @@ cleanup() {
         _verifyExists ${asset} && cd ${worktree} && git restore ${asset}
     done
 
-    echo "\n✂️ Shared local resources unlinked in 📁 ${worktree}\n"
+    echo "\n${remove_icon} Shared local resources unlinked in 📁 ${worktree}\n"
     _check
 }
 
@@ -186,30 +242,8 @@ entrypoint() {
 
         exec $1
     else
-        echo "neither a worktree project nor worktree; run \`wrktr init [repo-url] [project-directory]\`" && _exit 1
+        echo "${warn_icon} neither a worktree project nor worktree; run \`wrktr init [repo-url] [project-directory]\`" && _exit 1
     fi
-}
-
-_help() {
-    cat <<EOF
-    wrktr init [repo-url] [project-directory]
-
-        1. Create project directory
-        2. Clone bare repository into .bare
-        3. Create .git in project directory
-        4. Configure fetch remote
-        5. Add main worktree
-        6. Delete local branches
-
-    wrktr link [worktree directory]
-    wrktr check [worktree directory]
-    wrktr cleanup [worktree directory]
-
-    wrktr.conf:
-        hardlink_assets=()
-        softlink_assets=()
-        copy_assets=()
-EOF
 }
 
 entrypoint "$@"
