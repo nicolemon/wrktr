@@ -3,14 +3,15 @@
 
 # https://www.tomups.com/posts/git-worktrees/
 
-big_good_icon="✓"
-big_bad_icon="✘"
-good_icon="✅"
-bad_icon="❌"
-warn_icon="❗"
-search_icon="🔎"
-remove_icon="✂️"
-link_icon="🔗"
+big_good_char="✓"
+big_bad_char="✘"
+good_char="✅"
+bad_char="❌"
+warn_char="❗"
+search_char="🔎"
+remove_char="✂️"
+link_char="🔗"
+dir_char="📁"
 
 _help() {
     cat <<EOF
@@ -79,7 +80,7 @@ EOF
 worktree_component() {
     if test -d .SHARED; then
         printf "project"
-    elif test -d .git && test -d ../.SHARED; then
+    elif test -f .git && test -d ../.SHARED; then
         printf "worktree"
     else
         printf "unknown"
@@ -88,9 +89,9 @@ worktree_component() {
 
 guard() {
     if [ ! $(worktree_component) = "project" ]; then
-        echo "${warn_icon} you're not in a wrktr workspace" && _exit 1
+        echo "${warn_char} you're not in a wrktr workspace" && _exit 1
     elif ! test -d ${worktree}; then
-        echo "${warn_icon} directory at ${worktree} does not exist" && _exit 1
+        echo "${warn_char} directory at ${worktree} does not exist" && _exit 1
     fi
 }
 
@@ -116,30 +117,30 @@ _verifyExists() {
 
 verifyExists() {
     filename="$1"
-    _verifyExists ${filename} && (echo "${big_good_icon} FOUND: ${worktree}/${filename}") || (echo "${big_bad_icon} MISSING: ${worktree}/${filename}")
+    _verifyExists ${filename} && (echo "${big_good_char} FOUND: ${worktree}/${filename}") || (echo "${big_bad_char} MISSING: ${worktree}/${filename}")
 }
 
 verifySoftlink() {
     filename="$1"
-    test -L "${worktree}/${filename}" && (echo "  ${good_icon} softlinked: ${worktree}/${filename}") || (echo "  ${bad_icon} not softlinked: ${worktree}/${filename}")
+    test -L "${worktree}/${filename}" && (echo "  ${good_char} softlinked: ${worktree}/${filename}") || (echo "  ${bad_char} not softlinked: ${worktree}/${filename}")
 }
 
 verifyHardlink() {
     filename="$1"
     # link_count=$(stat -c %h "${worktree}/${filename}" 2>/dev/null)
     link_count=$(stat -f %l "${worktree}/${filename}" 2>/dev/null)
-    [ "${link_count}" -gt 1 ] && (echo "  ${good_icon} hardlinked: ${worktree}/${filename}") || (echo "  ${bad_icon} not hardlinked: ${worktree}/${filename}")
+    [ "${link_count}" -gt 1 ] && (echo "  ${good_char} hardlinked: ${worktree}/${filename}") || (echo "  ${bad_char} not hardlinked: ${worktree}/${filename}")
 }
 
 verifyCopy() {
     filename="$1"
     share_sum=$(sha1sum ${shared}/${filename} | awk '{ print $1 }')
     work_sum=$(sha1sum ${worktree}/${filename} | awk '{ print $1 }')
-    [ "${share_sum}" = "${work_sum}" ] && (echo "  ${good_icon} copy matches: ${worktree}/${filename}") || (echo "  ${bad_icon} copy mismatch: ${worktree}/${filename}")
+    [ "${share_sum}" = "${work_sum}" ] && (echo "  ${good_char} copy matches: ${worktree}/${filename}") || (echo "  ${bad_char} copy mismatch: ${worktree}/${filename}")
 }
 
 check() {
-    echo "\n${search_icon} Checking for shared local resources in 📁 ${worktree}...\n"
+    echo "\n${search_char} Checking for shared local resources in 📁 ${worktree}...\n"
     _check
 }
 
@@ -174,7 +175,7 @@ link() {
         createCopy ${asset}
     done
 
-    echo "\n${link_icon} Shared local resources linked in 📁 ${worktree}\n"
+    echo "\n${link_char} Shared local resources linked in ${dir_char} ${worktree}\n"
     _check
 }
 
@@ -191,7 +192,7 @@ cleanup() {
         _verifyExists ${asset} && cd ${worktree} && git restore ${asset}
     done
 
-    echo "\n${remove_icon} Shared local resources unlinked in 📁 ${worktree}\n"
+    echo "\n${remove_char} Shared local resources unlinked in ${dir_char} ${worktree}\n"
     _check
 }
 
@@ -218,31 +219,31 @@ entrypoint() {
         init $2 $3 && _exit 0
     fi
 
-    [ -f wrktr.conf ]
-
     if [ $(worktree_component) = "project" ] ; then
-        project_dir=$(pwd)
+        project_dir=$(pwd -P)
         shared="${project_dir}/.SHARED"
         worktree="${project_dir}/$2"
         guard  # check for worktree directory
 
-        [ -f wrktr.conf ] && source wrktr.conf
+        [ -f wrktr.conf ] && source wrktr.conf || (echo "no wrktr.conf found" && _exit 1)
         [ ! -v hardlink_assets ] && echo "hardlink_assets is unset"
         [ ! -v softlink_assets ] && echo "softlink_assets is unset"
+        [ ! -v copy_assets ] && echo "copy_assets is unset"
 
         exec $1
     elif [ $(worktree_component) = "worktree" ]; then
-        project_dir=".."
-        shared="../${project_dir}/.SHARED"
-        worktree=$(pwd)
+        project_dir="$(realpath $(pwd)/../)"
+        shared="${project_dir}/.SHARED"
+        worktree=$(pwd -P)
 
-        [ -f ../wrktr.conf ] && source ../wrktr.conf
+        [ -f ../wrktr.conf ] && source ../wrktr.conf || (echo "no wrktr.conf found" && _exit 1) 
         [ ! -v hardlink_assets ] && echo "hardlink_assets is unset"
         [ ! -v softlink_assets ] && echo "softlink_assets is unset"
+        [ ! -v copy_assets ] && echo "copy_assets is unset"
 
         exec $1
     else
-        echo "${warn_icon} neither a worktree project nor worktree; run \`wrktr init [repo-url] [project-directory]\`" && _exit 1
+        echo "${warn_char} neither a worktree project nor worktree; run \`wrktr init [repo-url] [project-directory]\`" && _exit 1
     fi
 }
 
