@@ -49,10 +49,14 @@ init() {
     echo "** setting gitdir for project directory..."
     echo "gitdir: ./.bare" > ${project_dir}/.git
 
-    echo "** configuring fetch remote and fetching..."
+    echo "** configuring fetch remote..."
     git -C ${project_dir} config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+
+    echo "** fetching..."
     git -C ${project_dir} fetch --quiet
-    git -C ${project_dir} branch --list | grep -v '\*\|\+\|ahead' | xargs -n 1 git branch -D
+
+    echo "** cleanup local refs..."
+    git -C ${project_dir} branch --list | grep -v '\*\|\+\|ahead' | xargs -n 1 git -C ${project_dir} branch -D --quiet
 
     echo "** creating main worktree..."
     git -C ${project_dir} worktree add --quiet main
