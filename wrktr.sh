@@ -314,6 +314,11 @@ _exit() {
 }
 
 entrypoint() {
+
+    if [ -z $1 ]; then
+        _commands && _exit 0
+    fi
+
     if [ $1 = "help" ]; then
         _help && _exit 0
     fi
@@ -322,40 +327,29 @@ entrypoint() {
         _commands && _exit 0
     fi
 
-    if [ -z $1 ]; then
-        check . && _exit 0
-    fi
-
     if [ $1 = "init" ]; then
         init $2 $3 && _exit 0
     fi
 
     if [ $(worktree_component) = "project" ] ; then
         project_dir=$(pwd -P)
-        shared="${project_dir}/.SHARED"
         worktree="${project_dir}/$2"
         guard  # check for worktree directory
-
-        [ -f wrktr.conf ] && source wrktr.conf || (echo "no wrktr.conf found" && _exit 1)
-        [ ! -v hardlink_assets ] && echo "hardlink_assets is unset"
-        [ ! -v softlink_assets ] && echo "softlink_assets is unset"
-        [ ! -v copy_assets ] && echo "copy_assets is unset"
-
-        exec $1
     elif [ $(worktree_component) = "worktree" ]; then
         project_dir="$(realpath $(pwd)/../)"
-        shared="${project_dir}/.SHARED"
         worktree=$(pwd -P)
-
-        [ -f ../wrktr.conf ] && source ../wrktr.conf || (echo "no wrktr.conf found" && _exit 1) 
-        [ ! -v hardlink_assets ] && echo "hardlink_assets is unset"
-        [ ! -v softlink_assets ] && echo "softlink_assets is unset"
-        [ ! -v copy_assets ] && echo "copy_assets is unset"
-
-        exec $1
     else
         echo "${warn_char} neither a worktree project nor worktree; run \`wrktr init [repo-url] [project-directory]\`" && _exit 1
     fi
+
+    shared="${project_dir}/.SHARED"
+    config_file="${project_dir}/wrktr.conf"
+    [ -f ${config_file} ] && source ${config_file} || (echo "config not found at ${config_file}" && _exit 1)
+    [ ! -v hardlink_assets ] && echo "hardlink_assets is unset"
+    [ ! -v softlink_assets ] && echo "softlink_assets is unset"
+    [ ! -v copy_assets ] && echo "copy_assets is unset"
+
+    exec $1
 }
 
 entrypoint "$@"
