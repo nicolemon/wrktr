@@ -164,6 +164,9 @@ init() {
     echo "** creating main worktree..."
     git -C ${project_dir} worktree add --quiet main
 
+    echo "** setting main upstream..."
+    git -C ${project_dir} branch --quiet --set-upstream-to origin/main
+
     echo "** creating initial wrktr.conf..."
     _write_conf > ${project_dir}/wrktr.conf
 }
